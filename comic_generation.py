@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from diffusers import StableDiffusionXLPipeline
+from diffusers import StableDiffusionXLPipeline, StableDiffusionPipeline
 from diffusers import DDIMScheduler
 import copy
 from utils.style_template import styles
@@ -272,7 +272,8 @@ models_dict = {
     "Juggernaut": "RunDiffusion/Juggernaut-XL-v8",
     "RealVision": "SG161222/RealVisXL_V4.0",
     "SDXL": "stabilityai/stable-diffusion-xl-base-1.0",
-    "Unstable": "stablediffusionapi/sdxl-unstable-diffusers-y"
+    "Unstable": "stablediffusionapi/sdxl-unstable-diffusers-y",
+    "SD": "stabilityai/sd-turbo"
 }
 
 global attn_count, total_count, id_length, total_length, cur_step, cur_model_type
@@ -294,14 +295,15 @@ write = False
 sa32 = 0.5
 sa64 = 0.5
 ### Res. of the Generated Comics. Please Note: SDXL models may do worse in a low-resolution!
-height = 768
-width = 768
+height = 512
+width = 512
 ###
 global pipe
 global sd_model_path
 sd_model_path = models_dict["Unstable"]  # "SG161222/RealVisXL_V4.0"
 ### LOAD Stable Diffusion Pipeline
-pipe = StableDiffusionXLPipeline.from_pretrained(sd_model_path, torch_dtype=torch.float16, use_safetensors=False)
+# pipe = StableDiffusionXLPipeline.from_pretrained(sd_model_path, torch_dtype=torch.float16, use_safetensors=False)
+pipe = StableDiffusionPipeline.from_pretrained('stabilityai/sd-turbo', torch_dtype=torch.float16)
 pipe = pipe.to(device)
 pipe.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
 pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
