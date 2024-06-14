@@ -357,7 +357,7 @@ def apply_style_positive(style_name: str, positive: str):
 
 def apply_style(style_name: str, positives: list, negative: str = ""):
     p, n = styles.get(style_name, styles[DEFAULT_STYLE_NAME])
-    return [p.replace("{prompt}", positive) for positive in positives], n + ' ' + negative
+    return [p.replace("{prompt}", positive) for positive in positives], [n + ' ' + negative] * len(positives)
 
 
 ### Set the generated Style
