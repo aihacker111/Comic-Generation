@@ -1,0 +1,11 @@
+__pycache__
+.idea
+output_render
+root_model
+data
+*.pyc
+debug
+.DS_Store
+img.png
+model.yml.gz
+test_ximgproc.py
