@@ -300,10 +300,10 @@ width = 512
 ###
 global pipe
 global sd_model_path
-sd_model_path = models_dict["Unstable"]  # "SG161222/RealVisXL_V4.0"
+sd_model_path = models_dict["SD"]  # "SG161222/RealVisXL_V4.0"
 ### LOAD Stable Diffusion Pipeline
 # pipe = StableDiffusionXLPipeline.from_pretrained(sd_model_path, torch_dtype=torch.float16, use_safetensors=False)
-pipe = StableDiffusionPipeline.from_pretrained('stabilityai/sd-turbo', torch_dtype=torch.float16)
+pipe = StableDiffusionPipeline.from_pretrained(sd_model_path, torch_dtype=torch.float16)
 pipe = pipe.to(device)
 pipe.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
 pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
