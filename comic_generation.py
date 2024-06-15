@@ -323,8 +323,8 @@ pipe.fuse_lora()
 
 pipe = pipe.to(device)
 pipe.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
-pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
-pipe.scheduler.set_timesteps(4)
+# pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
+# pipe.scheduler.set_timesteps(4)
 unet = pipe.unet
 
 ### Insert PairedAttention
