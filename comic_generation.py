@@ -306,15 +306,15 @@ sd_model_path = models_dict["SD"]  # "SG161222/RealVisXL_V4.0"
 # pipe = StableDiffusionXLPipeline.from_pretrained(sd_model_path, torch_dtype=torch.float16, use_safetensors=False)
 # pipe = DiffusionPipeline.from_pretrained(sd_model_path, torch_dtype=torch.float16)
 pipe = DiffusionPipeline.from_pretrained(
-  "stabilityai/stable-diffusion-xl-base-1.0",
+    "stabilityai/stable-diffusion-xl-base-1.0",
     torch_dtype=torch.float16,
     use_safetensors=True,
 )
 
 pipe.scheduler = LCMScheduler.from_pretrained(
-  "stabilityai/stable-diffusion-xl-base-1.0",
-  subfolder="scheduler",
-  timestep_spacing="trailing",
+    "stabilityai/stable-diffusion-xl-base-1.0",
+    subfolder="scheduler",
+    timestep_spacing="trailing",
 )
 pipe.enable_vae_slicing()
 
@@ -374,7 +374,7 @@ def apply_style_positive(style_name: str, positive: str):
 
 def apply_style(style_name: str, positives: list, negative: str = ""):
     p, n = styles.get(style_name, styles[DEFAULT_STYLE_NAME])
-    return [p.replace("{prompt}", positive) for positive in positives], [n + ' ' + negative] * len(positives)
+    return [p.replace("{prompt}", positive) for positive in positives], n + ' ' + negative
 
 
 ### Set the generated Style
