@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from diffusers import StableDiffusionXLPipeline, StableDiffusionPipeline
+from diffusers import StableDiffusionXLPipeline, DiffusionPipeline, LCMScheduler
 from diffusers import DDIMScheduler
 import copy
 from utils.style_template import styles
@@ -273,7 +273,8 @@ models_dict = {
     "RealVision": "SG161222/RealVisXL_V4.0",
     "SDXL": "stabilityai/stable-diffusion-xl-base-1.0",
     "Unstable": "stablediffusionapi/sdxl-unstable-diffusers-y",
-    "SD": "stabilityai/sd-turbo"
+    "SD": "stabilityai/sd-turbo",
+    "sdxl": "stabilityai/stable-diffusion-xl-base-1.0"
 }
 
 global attn_count, total_count, id_length, total_length, cur_step, cur_model_type
@@ -303,7 +304,20 @@ global sd_model_path
 sd_model_path = models_dict["SD"]  # "SG161222/RealVisXL_V4.0"
 ### LOAD Stable Diffusion Pipeline
 # pipe = StableDiffusionXLPipeline.from_pretrained(sd_model_path, torch_dtype=torch.float16, use_safetensors=False)
-pipe = StableDiffusionPipeline.from_pretrained(sd_model_path, torch_dtype=torch.float16)
+# pipe = DiffusionPipeline.from_pretrained(sd_model_path, torch_dtype=torch.float16)
+pipe = DiffusionPipeline.from_pretrained(
+  "stabilityai/stable-diffusion-xl-base-1.0",
+  use_safetensors=True,
+)
+
+pipe.scheduler = LCMScheduler.from_pretrained(
+  "stabilityai/stable-diffusion-xl-base-1.0",
+  subfolder="scheduler",
+  timestep_spacing="trailing",
+)
+pipe.load_lora_weights("jasperai/flash-sdxl")
+pipe.fuse_lora()
+
 pipe = pipe.to(device)
 pipe.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
 pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
