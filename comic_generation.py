@@ -307,7 +307,8 @@ sd_model_path = models_dict["SD"]  # "SG161222/RealVisXL_V4.0"
 # pipe = DiffusionPipeline.from_pretrained(sd_model_path, torch_dtype=torch.float16)
 pipe = DiffusionPipeline.from_pretrained(
   "stabilityai/stable-diffusion-xl-base-1.0",
-  use_safetensors=True,
+    torch_dtype=torch.float16,
+    use_safetensors=True,
 )
 
 pipe.scheduler = LCMScheduler.from_pretrained(
@@ -315,13 +316,15 @@ pipe.scheduler = LCMScheduler.from_pretrained(
   subfolder="scheduler",
   timestep_spacing="trailing",
 )
+pipe.enable_vae_slicing()
+
 pipe.load_lora_weights("jasperai/flash-sdxl")
 pipe.fuse_lora()
 
 pipe = pipe.to(device)
 pipe.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
 pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
-pipe.scheduler.set_timesteps(50)
+pipe.scheduler.set_timesteps(4)
 unet = pipe.unet
 
 ### Insert PairedAttention
@@ -352,7 +355,7 @@ seed = 2047
 sa32 = 0.5
 sa64 = 0.5
 id_length = 4
-num_steps = 50
+num_steps = 4
 general_prompt = "a man with a black suit"
 negative_prompt = "naked, deformed, bad anatomy, disfigured, poorly drawn face, mutation, extra limb, ugly, disgusting, poorly drawn hands, missing limb, floating limbs, disconnected limbs, blurry, watermarks, oversaturated, distorted hands, amputation"
 prompt_array = ["wake up in the bed",
