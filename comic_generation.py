@@ -1,12 +1,15 @@
 import numpy as np
 import torch
-from diffusers import StableDiffusionXLPipeline, DiffusionPipeline, LCMScheduler
-from diffusers import DDIMScheduler
+from diffusers import StableDiffusionXLPipeline, DiffusionPipeline, LCMScheduler, DDPMScheduler
+from diffusers import DDIMScheduler, EulerAncestralDiscreteScheduler
 import copy
 from utils.style_template import styles
 import random
 import torch.nn.functional as F
 from utils.gradio_utils import cal_attn_mask_xl, is_torch2_available
+from diffusers import PixArtAlphaPipeline, Transformer2DModel
+
+# from peft import PeftModel
 
 if is_torch2_available():
     from utils.gradio_utils import AttnProcessor2_0 as AttnProcessor
@@ -285,7 +288,7 @@ attn_count = 0
 total_count = 0
 cur_step = 0
 id_length = 4
-total_length = 5
+total_length = 4
 cur_model_type = ""
 device = "cuda"
 global attn_procs, unet
@@ -302,56 +305,93 @@ width = 512
 global pipe
 global sd_model_path
 sd_model_path = models_dict["SD"]  # "SG161222/RealVisXL_V4.0"
+
+# Load LoRA
+# transformer = Transformer2DModel.from_pretrained(
+#   "PixArt-alpha/PixArt-XL-2-1024-MS",
+#   subfolder="transformer",
+#   torch_dtype=torch.float16
+# )
+# transformer = PeftModel.from_pretrained(
+#   transformer,
+#   "jasperai/flash-pixart"
+# )
+
+# # Pipeline
+# torch.cuda.max_memory_allocated(device='cuda')
+# pipe = PixArtAlphaPipeline.from_pretrained(
+#   "PixArt-alpha/PixArt-XL-2-1024-MS",
+#   transformer=transformer,
+#   torch_dtype=torch.float16,
+
+# )
+
+# # Scheduler
+# pipe.scheduler = LCMScheduler.from_pretrained(
+#   "PixArt-alpha/PixArt-XL-2-1024-MS",
+#   subfolder="scheduler",
+#   timestep_spacing="trailing",
+# )
+# pipe.to('cuda')
+# pipe.enable_model_cpu_offload()
+
+# print(transformer)
+# transformer = pipe.transformer
+
+
 ### LOAD Stable Diffusion Pipeline
-# pipe = StableDiffusionXLPipeline.from_pretrained(sd_model_path, torch_dtype=torch.float16, use_safetensors=False)
-# pipe = DiffusionPipeline.from_pretrained(sd_model_path, torch_dtype=torch.float16)
-pipe = DiffusionPipeline.from_pretrained(
-    "stabilityai/stable-diffusion-xl-base-1.0",
-    torch_dtype=torch.float16,
-    use_safetensors=True,
+pipe = StableDiffusionXLPipeline.from_pretrained(
+    "stabilityai/sdxl-turbo",
+    #     torch_dtype=torch.float16,
+    #     variant='fp16'
+    use_safetensors=True
 )
-
-pipe.scheduler = LCMScheduler.from_pretrained(
-    "stabilityai/stable-diffusion-xl-base-1.0",
-    subfolder="scheduler",
-    timestep_spacing="trailing",
-)
+pipe.to('cuda')
 pipe.enable_vae_slicing()
+# pipe.enable_model_cpu_offload()
+# DDPMScheduler
+# LCMScheduler
+# EulerAncestralDiscreteScheduler
 
-pipe.load_lora_weights("jasperai/flash-sdxl")
-pipe.fuse_lora()
+# pipe.load_lora_weights("jasperai/flash-sdxl")
+# pipe.fuse_lora()
 
-pipe = pipe.to(device)
+# pipe = pipe.to(device)
 pipe.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
+pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(pipe.scheduler.config, timestep_spacing="trailing")
+
+set_attention_processor(pipe.unet, id_length)
 # pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
 # pipe.scheduler.set_timesteps(4)
-unet = pipe.unet
+# unet = pipe.unet
+# print(unet)
+
 
 ### Insert PairedAttention
-for name in unet.attn_processors.keys():
-    cross_attention_dim = None if name.endswith("attn1.processor") else unet.config.cross_attention_dim
-    if name.startswith("mid_block"):
-        hidden_size = unet.config.block_out_channels[-1]
-    elif name.startswith("up_blocks"):
-        block_id = int(name[len("up_blocks.")])
-        hidden_size = list(reversed(unet.config.block_out_channels))[block_id]
-    elif name.startswith("down_blocks"):
-        block_id = int(name[len("down_blocks.")])
-        hidden_size = unet.config.block_out_channels[block_id]
-    if cross_attention_dim is None and (name.startswith("up_blocks")):
-        attn_procs[name] = SpatialAttnProcessorV2(id_length=id_length)
-        total_count += 1
-    else:
-        attn_procs[name] = AttnProcessor()
-print("successsfully load consistent self-attention")
-print(f"number of the processor : {total_count}")
-unet.set_attn_processor(copy.deepcopy(attn_procs))
-global mask1024, mask4096
-mask1024, mask4096 = cal_attn_mask_xl(total_length, id_length, sa32, sa64, height, width, device=device,
-                                      dtype=torch.float16)
+# for name in unet.attn_processors.keys():
+#     cross_attention_dim = None if name.endswith("attn1.processor") else unet.config.cross_attention_dim
+#     if name.startswith("mid_block"):
+#         hidden_size = unet.config.block_out_channels[-1]
+#     elif name.startswith("up_blocks"):
+#         block_id = int(name[len("up_blocks.")])
+#         hidden_size = list(reversed(unet.config.block_out_channels))[block_id]
+#     elif name.startswith("down_blocks"):
+#         block_id = int(name[len("down_blocks.")])
+#         hidden_size = unet.config.block_out_channels[block_id]
+#     if cross_attention_dim is None and (name.startswith("up_blocks")):
+#         attn_procs[name] = SpatialAttnProcessorV2(id_length=id_length)
+#         total_count += 1
+#     else:
+#         attn_procs[name] = AttnProcessor()
+# print("successsfully load consistent self-attention")
+# print(f"number of the processor : {total_count}")
+# unet.set_attn_processor(copy.deepcopy(attn_procs))
+# global mask1024, mask4096
+# mask1024, mask4096 = cal_attn_mask_xl(total_length, id_length, sa32, sa64, height, width, device=device,
+#                                       dtype=torch.float16)
 
-guidance_scale = 5.0
-seed = 2047
+guidance_scale = 0.0
+seed = 42
 sa32 = 0.5
 sa64 = 0.5
 id_length = 4
@@ -360,10 +400,10 @@ general_prompt = "a man with a black suit"
 negative_prompt = "naked, deformed, bad anatomy, disfigured, poorly drawn face, mutation, extra limb, ugly, disgusting, poorly drawn hands, missing limb, floating limbs, disconnected limbs, blurry, watermarks, oversaturated, distorted hands, amputation"
 prompt_array = ["wake up in the bed",
                 "have breakfast",
-                "is on the road, go to the company",
-                "work in the company",
+                "go to the forest",
+                "catch a tiger"
+                "sit next to the lake",
                 "running in the playground",
-                "reading book in the home"
                 ]
 
 
@@ -384,29 +424,41 @@ generator = torch.Generator(device="cuda").manual_seed(seed)
 prompts = [general_prompt + "," + prompt for prompt in prompt_array]
 id_prompts = prompts[:id_length]
 real_prompts = prompts[id_length:]
+print(id_prompts)
+print(real_prompts)
 torch.cuda.empty_cache()
 write = True
 cur_step = 0
 attn_count = 0
 id_prompts, negative_prompt = apply_style(style_name, id_prompts, negative_prompt)
-id_images = pipe(id_prompts, num_inference_steps=num_steps, guidance_scale=guidance_scale, height=height, width=width,
+id_images = pipe(id_prompts, num_inference_steps=num_steps, strength=0.5, guidance_scale=guidance_scale, height=height,
+                 width=width,
                  negative_prompt=negative_prompt, generator=generator).images
 
 write = False
 
-
-def display(image):
-    image.show()
-
-
-for id_image in id_images:
-    display(id_image)
+for i, id_image in enumerate(id_images):
+    id_image.save(f'{i}_id_images.png')
 real_images = []
 for real_prompt in real_prompts:
     cur_step = 0
     real_prompt = apply_style_positive(style_name, real_prompt)
     real_images.append(
-        pipe(real_prompt, num_inference_steps=num_steps, guidance_scale=guidance_scale, height=height, width=width,
+        pipe(real_prompt, num_inference_steps=num_steps, strength=0.25, guidance_scale=guidance_scale, height=height,
+             width=width,
              negative_prompt=negative_prompt, generator=generator).images[0])
-for real_image in real_images:
-    display(real_image)
+for i, real_image in enumerate(real_images):
+    real_image.save(f'{i}_comic.png')
+
+from PIL import Image, ImageOps, ImageDraw, ImageFont
+from utils.utils import get_row_image
+from utils.utils import get_row_image
+from utils.utils import get_comic_4panel
+
+#### LOAD Fonts, can also replace with any Fonts you have!
+font = ImageFont.truetype("Inkfree.ttf", 30)
+total_images = id_images + real_images
+
+comics = get_comic_4panel(total_images, captions=prompt_array, font=font)
+for comic in comics:
+    comic.save('page_1.png')
